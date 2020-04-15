@@ -38,6 +38,8 @@
                    :m date})
          (partition 2 parsed))))
 
+;; (def urssaf (scrap-urssaf urssaf-url))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse Pôle Emploi
 
@@ -77,12 +79,12 @@
     (remove nil?
             (map (fn [e]
                    (when-let [question (not-empty (first (:content (first e))))]
-                     {:q question
-                      :r (hi/html (hc/hickory-to-hiccup (second e)))
+                     {:q (s/trim question)
+                      :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
                       :s "Gouvernement"
                       :u url
                       :m date}))
-                 (partition 2 parsed)))))
+                 (map flatten (partition 2 (partition-by :attrs parsed)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse education.gouv.fr
