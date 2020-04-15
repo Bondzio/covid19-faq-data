@@ -91,23 +91,32 @@
 
 (def education-url "https://www.education.gouv.fr/coronavirus-covid-19-informations-et-recommandations-pour-les-etablissements-scolaires-et-les-274253")
 
+(defn is-a-question? [e]
+  (when-let [s (not-empty (hi/html (hc/hickory-to-hiccup e)))]
+    (or (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" s) 2)
+        (re-matches #"^.*Annonce.*$" s))))
+
 (defn scrap-education [url]
-  (let [parsed
+  (let [hs-question-selector (hs/and (hs/tag "h3") (hs/class "title"))
+        parsed
         (-> (scrap url)
             h/parse
             h/as-hickory
-            (as-> s (hs/select (hs/or (hs/and (hs/tag "h3") (hs/class "title"))
-                                      (hs/follow (hs/tag "h3") (hs/tag "p")))
-                               s)))]
+            (as-> s (hs/select
+                     (hs/or hs-question-selector
+                            (hs/follow hs-question-selector (hs/tag "p")))
+                     s)))]
     (remove nil?
             (map (fn [e]
-                   (when-let [question (not-empty (first (:content (first e))))]
-                     {:q question
-                      :r (hi/html (hc/hickory-to-hiccup (second e)))
+                   (when-let [question (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
+                     {:q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" question) 2)
+                      :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
                       :s "Ministère de l'Éducation nationale"
                       :u url
                       :m date}))
-                 (partition 2 parsed)))))
+                 (map flatten
+                      (partition
+                       2 (partition-by is-a-question? parsed)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
@@ -131,5 +140,3 @@
            true))))
 
 ;; (-main)
-
-
