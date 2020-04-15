@@ -1,0 +1,34 @@
+{:version     "0.1.0"
+ :description "Fetch COVID-19 FAQs data"
+ :url         ""
+ :license     {:name "Eclipse Public License - v 2.0"
+               :url  "http://www.eclipse.org/legal/epl-v20.html"}
+
+ :deps {org.clojure/clojure {:mvn/version "1.10.1"}
+        clj-http            {:mvn/version "3.10.0"}
+        hickory             {:mvn/version "0.7.1"}
+        cheshire            {:mvn/version "5.10.0"}
+        hiccup              {:mvn/version "1.0.5"}
+        clojure.java-time   {:mvn/version "0.3.2"}
+        ;; org.martinklepsch/clj-http-lite {:mvn/version "0.4.3"}
+        ;; semantic-csv                    {:mvn/version "0.2.0"}
+        ;; ring/ring-codec                 {:mvn/version "1.1.2"}
+        }
+
+ :aliases {:native-image
+           {:main-opts ["-m clj.native-image core"
+                        ;; "--verbose"
+                        "--no-fallback"
+                        "--report-unsupported-elements-at-runtime"
+                        "--initialize-at-build-time"
+                        ;; Allow https get
+                        "-H:EnableURLProtocols=https"
+                        ;; Display backtraces
+                        "-H:+ReportExceptionStackTraces"
+                        ;; Optional native image name override
+                        "-H:Name=covid19-faq-data"]
+            :jvm-opts  ["-Dclojure.compiler.direct-linking=true"]
+            :extra-deps
+            {clj.native-image
+             {:git/url "https://github.com/taylorwood/clj.native-image.git"
+              :sha     "602587dfb5243ea8c72ed3e967c37c1f9d611723"}}}}}
