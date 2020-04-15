@@ -1,5 +1,5 @@
 .cpcache/
 target/
-public/
+public/faq.json
 todo.org
 .nrepl-port
