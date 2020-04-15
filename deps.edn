@@ -5,7 +5,7 @@
                :url  "http://www.eclipse.org/legal/epl-v20.html"}
 
  :deps {org.clojure/clojure {:mvn/version "1.10.1"}
-        clj-http            {:mvn/version "3.10.0"}
+        clj-http            {:mvn/version "3.10.1"}
         hickory             {:mvn/version "0.7.1"}
         cheshire            {:mvn/version "5.10.0"}
         hiccup              {:mvn/version "1.0.5"}
