@@ -33,7 +33,8 @@
         parsed (map hc/hickory-to-hiccup parsed)]
     (map (fn [qr] {:question (hi/html (last (first qr)))
                    :answer   (hi/html (second qr))
-                   :source   url})
+                   :source   url
+                   :updated  date})
          (partition 2 parsed))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -55,7 +56,8 @@
                    (when-let [question (not-empty (first (:content (first e))))]
                      {:question question
                       :answer   (hi/html (hc/hickory-to-hiccup (second e)))
-                      :source   url}))
+                      :source   url
+                      :updated  date}))
                  parsed))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -75,7 +77,8 @@
                    (when-let [question (not-empty (first (:content (first e))))]
                      {:question question
                       :answer   (hi/html (hc/hickory-to-hiccup (second e)))
-                      :source   url}))
+                      :source   url
+                      :updated  date}))
                  (partition 2 parsed)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -96,7 +99,8 @@
                    (when-let [question (not-empty (first (:content (first e))))]
                      {:question question
                       :answer   (hi/html (hc/hickory-to-hiccup (second e)))
-                      :source   url}))
+                      :source   url
+                      :updated  date}))
                  (partition 2 parsed)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
