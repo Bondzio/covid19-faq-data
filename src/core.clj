@@ -31,10 +31,10 @@
             (as-> s (hs/select (hs/or (hs/class "faqQuestion")
                                       (hs/class "faqAnswer")) s)))
         parsed (map hc/hickory-to-hiccup parsed)]
-    (map (fn [qr] {:q  (hi/html (last (first qr)))
-                   :a  (hi/html (second qr))
-                   :s  url
-                   :ud date})
+    (map (fn [qr] {:q (hi/html (last (first qr)))
+                   :a (hi/html (second qr))
+                   :s url
+                   :u date})
          (partition 2 parsed))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -54,10 +54,10 @@
     (remove nil?
             (map (fn [e]
                    (when-let [question (not-empty (first (:content (first e))))]
-                     {:q  question
-                      :a  (hi/html (hc/hickory-to-hiccup (second e)))
-                      :s  url
-                      :ud date}))
+                     {:q question
+                      :a (hi/html (hc/hickory-to-hiccup (second e)))
+                      :s url
+                      :u date}))
                  parsed))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -75,10 +75,10 @@
     (remove nil?
             (map (fn [e]
                    (when-let [question (not-empty (first (:content (first e))))]
-                     {:q  question
-                      :a  (hi/html (hc/hickory-to-hiccup (second e)))
-                      :s  url
-                      :ud date}))
+                     {:q question
+                      :a (hi/html (hc/hickory-to-hiccup (second e)))
+                      :s url
+                      :u date}))
                  (partition 2 parsed)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -97,10 +97,10 @@
     (remove nil?
             (map (fn [e]
                    (when-let [question (not-empty (first (:content (first e))))]
-                     {:q  question
-                      :a  (hi/html (hc/hickory-to-hiccup (second e)))
-                      :s  url
-                      :ud date}))
+                     {:q question
+                      :a (hi/html (hc/hickory-to-hiccup (second e)))
+                      :s url
+                      :u date}))
                  (partition 2 parsed)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
