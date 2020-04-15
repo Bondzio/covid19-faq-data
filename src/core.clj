@@ -32,9 +32,10 @@
                                       (hs/class "faqAnswer")) s)))
         parsed (map hc/hickory-to-hiccup parsed)]
     (map (fn [qr] {:q (hi/html (last (first qr)))
-                   :a (hi/html (second qr))
-                   :s url
-                   :u date})
+                   :r (hi/html (second qr))
+                   :s "URSSAF"
+                   :u url
+                   :m date})
          (partition 2 parsed))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -55,9 +56,10 @@
             (map (fn [e]
                    (when-let [question (not-empty (first (:content (first e))))]
                      {:q question
-                      :a (hi/html (hc/hickory-to-hiccup (second e)))
-                      :s url
-                      :u date}))
+                      :r (hi/html (hc/hickory-to-hiccup (second e)))
+                      :s "Pôle emploi"
+                      :u url
+                      :m date}))
                  parsed))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -76,9 +78,10 @@
             (map (fn [e]
                    (when-let [question (not-empty (first (:content (first e))))]
                      {:q question
-                      :a (hi/html (hc/hickory-to-hiccup (second e)))
-                      :s url
-                      :u date}))
+                      :r (hi/html (hc/hickory-to-hiccup (second e)))
+                      :s "Gouvernement"
+                      :u url
+                      :m date}))
                  (partition 2 parsed)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -98,9 +101,10 @@
             (map (fn [e]
                    (when-let [question (not-empty (first (:content (first e))))]
                      {:q question
-                      :a (hi/html (hc/hickory-to-hiccup (second e)))
-                      :s url
-                      :u date}))
+                      :r (hi/html (hc/hickory-to-hiccup (second e)))
+                      :s "Ministère de l'Éducation nationale"
+                      :u url
+                      :m date}))
                  (partition 2 parsed)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
