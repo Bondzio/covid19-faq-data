@@ -119,10 +119,15 @@
         education     (scrap-education education-url)]
     (spit "public/faq.json"
           (json/generate-string
-           (concat urssaf
-                   pole-emploi-1
-                   pole-emploi-2
-                   pole-emploi-3
-                   gouvernement
-                   education)
+           (map-indexed (fn [idx itm] (merge itm {:i idx}))
+                        (concat urssaf
+                                pole-emploi-1
+                                pole-emploi-2
+                                pole-emploi-3
+                                gouvernement
+                                education))
            true))))
+
+;; (-main)
+
+
