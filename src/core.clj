@@ -7,7 +7,8 @@
             [hickory.convert :as hc]
             [hickory.select :as hs]
             [hiccup.core :as hi]
-            [java-time :as t])
+            [java-time :as t]
+            [clojure.zip :as z])
   (:gen-class))
 
 (def http-get-params {:cookie-policy :standard :insecure? true})
@@ -91,6 +92,7 @@
 
 (def education-url "https://www.education.gouv.fr/coronavirus-covid-19-informations-et-recommandations-pour-les-etablissements-scolaires-et-les-274253")
 
+;; FIXME: use hs/find-in-text?
 (defn is-a-question? [e]
   (when-let [s (not-empty (hi/html (hc/hickory-to-hiccup e)))]
     (or (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" s) 2)
@@ -119,24 +121,58 @@
                        2 (partition-by is-a-question? parsed)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Parse https://travail-emploi.gouv.fr
+
+(def travailemploi-url "https://travail-emploi.gouv.fr/actualites/l-actualite-du-ministere/article/coronavirus-questions-reponses-pour-les-entreprises-et-les-salaries")
+
+(defn travailemploi-entity [e url date]
+  {:q (try (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$"
+                            (hi/html (hc/hickory-to-hiccup (first e)))) 2)
+           (catch Exception _ "ERREUR"))
+   :r (try (hi/html
+            (hc/hickory-to-hiccup
+             (z/node (z/right (z/right (z/up e))))))
+           (catch Exception _ "ERREUR"))
+   :s "Ministère du Travail"
+   :u url
+   :m date})
+
+(defn scrap-travailemploi [url]
+  (let [parsed
+        (-> (scrap url)
+            h/parse
+            h/as-hickory
+            (as-> s (hs/select-locs
+                     (hs/and (hs/tag "strong")
+                             (hs/find-in-text #"^.*\?\s*$"))
+                     s)))]
+    (map #(travailemploi-entity % url date) parsed)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn -main []
-  (let [urssaf        (scrap-urssaf urssaf-url)
+  (let [
+        urssaf        (scrap-urssaf urssaf-url)
         pole-emploi-1 (scrap-pole-emploi pole-emploi-url-1)
         pole-emploi-2 (scrap-pole-emploi pole-emploi-url-2)
         pole-emploi-3 (scrap-pole-emploi pole-emploi-url-3)
         gouvernement  (scrap-gouvernement gouvernement-url)
-        education     (scrap-education education-url)]
+        education     (scrap-education education-url)
+        travailemploi (scrap-travailemploi travailemploi-url)
+        ]
     (spit "public/faq.json"
           (json/generate-string
            (map-indexed (fn [idx itm] (merge itm {:i idx}))
-                        (concat urssaf
-                                pole-emploi-1
-                                pole-emploi-2
-                                pole-emploi-3
-                                gouvernement
-                                education))
+                        (concat
+                         urssaf
+                         pole-emploi-1
+                         pole-emploi-2
+                         pole-emploi-3
+                         gouvernement
+                         education
+                         travailemploi
+                         ))
            true))))
 
 ;; (-main)
