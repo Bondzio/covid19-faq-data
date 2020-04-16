@@ -39,8 +39,6 @@
                    :m date})
          (partition 2 parsed))))
 
-;; (def urssaf (scrap-urssaf urssaf-url))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse Pôle Emploi
 
@@ -177,6 +175,34 @@
     (map #(associations-entity % url date) parsed)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Parse https://handicap.gouv.fr
+
+(def handicap-url "https://handicap.gouv.fr/grands-dossiers/coronavirus/article/foire-aux-questions")
+
+(defn handicap-entity [e url date]
+  {:q (try (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$"
+                            (hi/html (hc/hickory-to-hiccup (first e)))) 2)
+           (catch Exception _ "ERREUR"))
+   :r (try (hi/html
+            (hc/hickory-to-hiccup
+             (z/node (z/right (z/right (z/up e))))))
+           (catch Exception _ "ERREUR"))
+   :s "Secrétariat d'État / Handicap"
+   :u url
+   :m date})
+
+(defn scrap-handicap [url]
+  (let [parsed
+        (-> (scrap url)
+            h/parse
+            h/as-hickory
+            (as-> s (hs/select-locs
+                     (hs/and (hs/tag "strong")
+                             (hs/find-in-text #"^.*\?\s*$"))
+                     s)))]
+    (map #(handicap-entity % url date) parsed)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn -main []
@@ -189,6 +215,7 @@
         education     (scrap-education education-url)
         travailemploi (scrap-travailemploi travailemploi-url)
         associations  (scrap-associations associations-url)
+        handicap      (scrap-handicap handicap-url)
         ]
     (spit "public/faq.json"
           (json/generate-string
@@ -202,6 +229,7 @@
                          education
                          travailemploi
                          associations
+                         handicap
                          ))
            true))))
 
