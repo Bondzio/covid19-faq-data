@@ -8,7 +8,8 @@
             [hickory.select :as hs]
             [hiccup.core :as hi]
             [java-time :as t]
-            [clojure.zip :as z])
+            [clojure.zip :as z]
+            [babashka.curl :as curl])
   (:gen-class))
 
 (def http-get-params {:cookie-policy :standard :insecure? true})
@@ -203,6 +204,33 @@
     (map #(handicap-entity % url date) parsed)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Parse https://www.etudiant.gouv.fr
+
+(def etudiant-url "https://www.etudiant.gouv.fr/pid33626-cid150278/covid-19-%7C-faq-crous-etudes-concours-services.html")
+
+(defn scrap-etudiant [url]
+  (let [hs-question-selector (hs/and (hs/tag "h4") (hs/find-in-text #"^.*\?\s*$"))
+        parsed
+        (-> (curl/get url) ;; Cf. 419 status from http/get
+            h/parse
+            h/as-hickory
+            (as-> s (hs/select
+                     (hs/or hs-question-selector
+                            (hs/follow hs-question-selector (hs/tag "p")))
+                     s)))]
+    (remove nil?
+            (map (fn [e]
+                   (when-let [question (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
+                     {:q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" question) 2)
+                      :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+                      :s "MESRI / Les Crous"
+                      :u url
+                      :m date}))
+                 (map flatten
+                      (partition
+                       2 (partition-by is-a-question? parsed)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn -main []
@@ -216,6 +244,7 @@
         travailemploi (scrap-travailemploi travailemploi-url)
         associations  (scrap-associations associations-url)
         handicap      (scrap-handicap handicap-url)
+        etudiant      (scrap-etudiant etudiant-url)
         ]
     (spit "public/faq.json"
           (json/generate-string
@@ -230,6 +259,7 @@
                          travailemploi
                          associations
                          handicap
+                         etudiant
                          ))
            true))))
 
