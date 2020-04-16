@@ -10,6 +10,7 @@
         cheshire            {:mvn/version "5.10.0"}
         hiccup              {:mvn/version "1.0.5"}
         clojure.java-time   {:mvn/version "0.3.2"}
+        borkdude/babashka   {:mvn/version "0.0.75"}
         ;; org.martinklepsch/clj-http-lite {:mvn/version "0.4.3"}
         ;; semantic-csv                    {:mvn/version "0.2.0"}
         ;; ring/ring-codec                 {:mvn/version "1.1.2"}

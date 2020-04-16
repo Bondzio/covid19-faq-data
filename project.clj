@@ -9,7 +9,8 @@
                  [hickory "0.7.1"]
                  [cheshire "5.10.0"]
                  [hiccup "1.0.5"]
-                 [clojure.java-time "0.3.2"]]
+                 [clojure.java-time "0.3.2"]
+                 [borkdude/babashka "0.0.75"]]
   :clean-targets ^{:protect false} ["target" "public"]
   :aliases {"run" ["trampoline" "run" "-m" "core"]}
   )
