@@ -149,6 +149,34 @@
     (map #(travailemploi-entity % url date) parsed)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Parse https://www.associations.gouv.fr
+
+(def associations-url "https://www.associations.gouv.fr/associations-et-crise-du-covid-19-la-foire-aux-questions.html")
+
+(defn associations-entity [e url date]
+  {:q (try (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$"
+                            (hi/html (hc/hickory-to-hiccup (first e)))) 2)
+           (catch Exception _ "ERREUR"))
+   :r (try (hi/html
+            (hc/hickory-to-hiccup
+             (z/node (z/right (z/right (z/up e))))))
+           (catch Exception _ "ERREUR"))
+   :s "MENJ - Associations"
+   :u url
+   :m date})
+
+(defn scrap-associations [url]
+  (let [parsed
+        (-> (scrap url)
+            h/parse
+            h/as-hickory
+            (as-> s (hs/select-locs
+                     (hs/and (hs/tag "strong")
+                             (hs/find-in-text #"^.*\?\s*$"))
+                     s)))]
+    (map #(associations-entity % url date) parsed)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn -main []
@@ -160,6 +188,7 @@
         gouvernement  (scrap-gouvernement gouvernement-url)
         education     (scrap-education education-url)
         travailemploi (scrap-travailemploi travailemploi-url)
+        associations  (scrap-associations associations-url)
         ]
     (spit "public/faq.json"
           (json/generate-string
@@ -172,6 +201,7 @@
                          gouvernement
                          education
                          travailemploi
+                         associations
                          ))
            true))))
 
