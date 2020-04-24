@@ -1,1 +1,0 @@
-This directory contains =faq.json= as produced by =clj -m core=.
