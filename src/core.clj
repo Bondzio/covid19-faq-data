@@ -1,7 +1,5 @@
 (ns core
   (:require [cheshire.core :as json]
-            ;; [clj-http.lite.client :as http]
-            [clj-http.client :as http]
             [clojure.string :as s]
             [hickory.core :as h]
             [hickory.convert :as hc]
@@ -12,223 +10,247 @@
             [babashka.curl :as curl])
   (:gen-class))
 
-(def http-get-params {:cookie-policy :standard :insecure? true})
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Variables and utility functions
 
-(def date (str (t/local-date)))
+(def date (str (t/local-date-time)))
 
-(defn scrap [url]
-  (try (:body (http/get url http-get-params))
-       (catch Exception _ (println "Can't get HTML source"))))
+(defn scrap-to-hickory [url]
+  (try (-> (curl/get url {:raw-args ["-k"]})
+           h/parse
+           h/as-hickory)
+       (catch Exception _
+         (println "Can't get URL:" url))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse URSSAF FAQ
+;; Parse FAQs URSSAF
 
 (def urssaf-url "https://www.urssaf.fr/portail/home/actualites/foire-aux-questions.html")
 
+(defn urssaf-entity [e url]
+  {:q (hi/html (last (first e)))
+   :r (hi/html (second e))
+   :s "URSSAF"
+   :u url
+   :m date})
+
 (defn scrap-urssaf [url]
-  (let [parsed
-        (-> (scrap url)
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select (hs/or (hs/class "faqQuestion")
-                                      (hs/class "faqAnswer")) s)))
-        parsed (map hc/hickory-to-hiccup parsed)]
-    (map (fn [qr] {:q (hi/html (last (first qr)))
-                   :r (hi/html (second qr))
-                   :s "URSSAF"
-                   :u url
-                   :m date})
-         (partition 2 parsed))))
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/or (hs/class "faqQuestion")
+               (hs/class "faqAnswer")))
+       (map hc/hickory-to-hiccup)
+       (partition 2)
+       (map #(urssaf-entity % url))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse Pôle Emploi
+;; Parse FAQs from Pôle Emploi
 
 (def pole-emploi-url-1 "https://www.pole-emploi.fr/actualites/information-covid-19.html")
 (def pole-emploi-url-2 "https://www.pole-emploi.fr/actualites/covid-19-activite-partielle-et-a.html")
 (def pole-emploi-url-3 "https://www.pole-emploi.fr/actualites/allongement-exceptionnel-de-lind.html")
 
+(defn pole-emploi-entity [e url]
+  (when-let [question (not-empty (first (:content (first e))))]
+    {:q question
+     :r (hi/html (hc/hickory-to-hiccup (second e)))
+     :s "Pôle emploi"
+     :u url
+     :m date}))
+
 (defn scrap-pole-emploi [url]
-  (let [parsed
-        (-> (scrap url)
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select (hs/class "block-article-link") s)))
-        parsed (map (fn [e] (filter #(not (string? %)) (:content e))) parsed)]
-    (remove nil?
-            (map (fn [e]
-                   (when-let [question (not-empty (first (:content (first e))))]
-                     {:q question
-                      :r (hi/html (hc/hickory-to-hiccup (second e)))
-                      :s "Pôle emploi"
-                      :u url
-                      :m date}))
-                 parsed))))
+  (->> (scrap-to-hickory url)
+       (hs/select (hs/class "block-article-link"))
+       (map (fn [e] (filter #(not (string? %)) (:content e))))
+       (map #(pole-emploi-entity % url))
+       (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse gouvernement.fr
+;; Parse FAQs from gouvernement.fr
 
 (def gouvernement-url "https://www.gouvernement.fr/info-coronavirus")
 
+(defn gouvernement-entity [e url]
+  (when-let [question (not-empty (first (:content (first e))))]
+    {:q (s/trim question)
+     :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+     :s "Gouvernement"
+     :u url
+     :m date}))
+
 (defn scrap-gouvernement [url]
-  (let [parsed
-        (-> (scrap url)
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select (hs/or (hs/class "item-question")
-                                      (hs/class "item-reponse")) s)))]
-    (remove nil?
-            (map (fn [e]
-                   (when-let [question (not-empty (first (:content (first e))))]
-                     {:q (s/trim question)
-                      :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
-                      :s "Gouvernement"
-                      :u url
-                      :m date}))
-                 (map flatten (partition 2 (partition-by :attrs parsed)))))))
+  (->> (scrap-to-hickory url)
+       (hs/select (hs/or (hs/class "item-question")
+                         (hs/class "item-reponse")))
+       (partition-by :attrs)
+       (partition 2)
+       (map flatten)
+       (map #(gouvernement-entity % url))
+       (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse education.gouv.fr
+;; Parse FAQs from education.gouv.fr
 
 (def education-url "https://www.education.gouv.fr/coronavirus-covid-19-informations-et-recommandations-pour-les-etablissements-scolaires-et-les-274253")
 
-;; FIXME: use hs/find-in-text?
-(defn is-a-question? [e]
-  (when-let [s (not-empty (hi/html (hc/hickory-to-hiccup e)))]
-    (or (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" s) 2)
-        (re-matches #"^.*Annonce.*$" s))))
+(defn education-entity [e url]
+  (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
+    (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
+      {:q q
+       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :s "Ministère de l'Éducation nationale"
+       :u url
+       :m date})))
 
 (defn scrap-education [url]
-  (let [hs-question-selector (hs/and (hs/tag "h3") (hs/class "title"))
-        parsed
-        (-> (scrap url)
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select
-                     (hs/or hs-question-selector
-                            (hs/follow hs-question-selector (hs/tag "p")))
-                     s)))]
-    (remove nil?
-            (map (fn [e]
-                   (when-let [question (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
-                     {:q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" question) 2)
-                      :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
-                      :s "Ministère de l'Éducation nationale"
-                      :u url
-                      :m date}))
-                 (map flatten
-                      (partition
-                       2 (partition-by is-a-question? parsed)))))))
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/or (hs/and (hs/tag "h3") (hs/class "title"))
+               (hs/tag "p")))
+       (partition-by #(= "title" (:class (:attrs %))))
+       (drop-while #(nil? (:attrs (first %))))
+       (partition 2)
+       (map flatten)
+       (map #(education-entity % url))
+       (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse https://travail-emploi.gouv.fr
-
-(def travailemploi-url "https://travail-emploi.gouv.fr/actualites/l-actualite-du-ministere/article/coronavirus-questions-reponses-pour-les-entreprises-et-les-salaries")
-
-(defn travailemploi-entity [e url date]
-  {:q (try (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$"
-                            (hi/html (hc/hickory-to-hiccup (first e)))) 2)
-           (catch Exception _ "ERREUR"))
-   :r (try (hi/html
-            (hc/hickory-to-hiccup
-             (z/node (z/right (z/right (z/up e))))))
-           (catch Exception _ "ERREUR"))
-   :s "Ministère du Travail"
-   :u url
-   :m date})
-
-(defn scrap-travailemploi [url]
-  (let [parsed
-        (-> (scrap url)
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select-locs
-                     (hs/and (hs/tag "strong")
-                             (hs/find-in-text #"^.*\?\s*$"))
-                     s)))]
-    (map #(travailemploi-entity % url date) parsed)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse https://www.associations.gouv.fr
+;; Parse FAQs from https://www.associations.gouv.fr
 
 (def associations-url "https://www.associations.gouv.fr/associations-et-crise-du-covid-19-la-foire-aux-questions.html")
 
-(defn associations-entity [e url date]
-  {:q (try (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$"
-                            (hi/html (hc/hickory-to-hiccup (first e)))) 2)
-           (catch Exception _ "ERREUR"))
-   :r (try (hi/html
-            (hc/hickory-to-hiccup
-             (z/node (z/right (z/right (z/up e))))))
-           (catch Exception _ "ERREUR"))
-   :s "MENJ - Associations"
-   :u url
-   :m date})
+(defn associations-entity [e url]
+  (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
+    (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
+      {:q q
+       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :s "MENJ - Associations"
+       :u url
+       :m date})))
 
 (defn scrap-associations [url]
-  (let [parsed
-        (-> (scrap url)
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select-locs
-                     (hs/and (hs/tag "strong")
-                             (hs/find-in-text #"^.*\?\s*$"))
-                     s)))]
-    (map #(associations-entity % url date) parsed)))
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/or (hs/and (hs/tag "strong")
+                       (hs/find-in-text #"^.*\?\s*$"))
+               (hs/and (hs/tag "p")
+                       (hs/not (hs/find-in-text #"^.*\?\s*$")))))
+       (drop-while #(not (string? (first (:content %)))))
+       (partition-by #(= (:tag %) :strong))
+       (partition 2)
+       (map flatten)
+       (map #(associations-entity % url))
+       (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse https://handicap.gouv.fr
+;; Parse FAQs from https://travail-emploi.gouv.fr
+
+(def travailemploi-url-prefix
+  "https://travail-emploi.gouv.fr/le-ministere-en-action/coronavirus-covid-19/questions-reponses-par-theme/article/")
+
+(def travailemploi-urls
+  ["mesures-de-prevention-dans-l-entreprise-contre-le-covid-19-masques"
+   "mesures-de-prevention-sante-hors-covid-19"
+   "garde-d-enfants-et-personnes-vulnerables"
+   "indemnisation-chomage"
+   "formation-professionnelle-stagiaires-et-organismes-de-formation"
+   "apprentissage-apprentis-et-organismes-de-formation-cfa"
+   "activite-partielle-chomage-partiel"
+   "adaptation-de-l-activite-conges-mise-a-disposition-de-main-d-oeuvre"
+   "primes-exceptionnelles-et-epargne-salariale"
+   "dialogue-social"
+   "embauche-demission-sanctions-licenciement"
+   "services-de-sante-au-travail"])
+
+(defn travailemploi-entity [e url]
+  (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
+    (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
+      {:q q
+       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :s "Ministère du Travail"
+       :u url
+       :m date})))
+
+(defn scrap-travailemploi-url [url]
+  (let [url (str travailemploi-url-prefix url)]
+    (->> (scrap-to-hickory url)
+         (hs/select
+          (hs/or (hs/and (hs/tag "strong")
+                         (hs/find-in-text #"^.*\?\s*$"))
+                 (hs/and (hs/tag "p")
+                         (hs/not (hs/find-in-text #"^.*\?\s*$")))))
+         (drop-while #(not (= (:tag %) :strong)))
+         (partition-by #(= (:tag %) :strong))
+         (partition 2)
+         (map flatten)
+         (map #(travailemploi-entity % url))
+         (remove nil?))))
+
+(defn scrap-travailemploi []
+  (flatten (map scrap-travailemploi-url travailemploi-urls)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Parse FAQs from https://handicap.gouv.fr
 
 (def handicap-url "https://handicap.gouv.fr/grands-dossiers/coronavirus/article/foire-aux-questions")
 
-(defn handicap-entity [e url date]
-  {:q (try (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$"
-                            (hi/html (hc/hickory-to-hiccup (first e)))) 2)
-           (catch Exception _ "ERREUR"))
-   :r (try (hi/html
-            (hc/hickory-to-hiccup
-             (z/node (z/right (z/right (z/up e))))))
-           (catch Exception _ "ERREUR"))
-   :s "Secrétariat d'État / Handicap"
-   :u url
-   :m date})
+(defn handicap-entity [e url]
+  (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
+    (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
+      {:q q
+       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :s "Secrétariat d'État au handicap"
+       :u url
+       :m date})))
 
 (defn scrap-handicap [url]
-  (let [parsed
-        (-> (scrap url)
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select-locs
-                     (hs/and (hs/tag "strong")
-                             (hs/find-in-text #"^.*\?\s*$"))
-                     s)))]
-    (map #(handicap-entity % url date) parsed)))
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/or (hs/and (hs/tag "strong")
+                       (hs/find-in-text #"^.*\?\s*$"))
+               (hs/and (hs/tag "p")
+                       (hs/not (hs/find-in-text #"^.*\?\s*$")))))
+       (drop-while #(not (string? (first (:content %)))))
+       (partition-by #(= (:tag %) :strong))
+       (partition 2)
+       (map flatten)
+       (map #(handicap-entity % url))
+       (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Parse https://www.etudiant.gouv.fr
+;; Parse FAQs from https://www.etudiant.gouv.fr
 
-(def etudiant-url "https://www.etudiant.gouv.fr/pid33626-cid150278/covid-19-%7C-faq-crous-etudes-concours-services.html")
+(def etudiant-url
+  "https://www.etudiant.gouv.fr/pid33626-cid150278/covid-19-%7C-faq-crous-etudes-concours-services.html")
+
+(defn is-a-question? [e]
+  (when-let [s (not-empty (hi/html (hc/hickory-to-hiccup e)))]
+    (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" s) 2)))
+
+(defn etudiant-entity [e url]
+  (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
+    (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
+      {:q q
+       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :s "MESRI / Les Crous"
+       :u url
+       :m date})))
 
 (defn scrap-etudiant [url]
-  (let [hs-question-selector (hs/and (hs/tag "h4") (hs/find-in-text #"^.*\?\s*$"))
-        parsed
-        (-> (curl/get url) ;; Cf. 419 status from http/get
-            h/parse
-            h/as-hickory
-            (as-> s (hs/select
-                     (hs/or hs-question-selector
-                            (hs/follow hs-question-selector (hs/tag "p")))
-                     s)))]
-    (remove nil?
-            (map (fn [e]
-                   (when-let [question (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
-                     {:q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" question) 2)
-                      :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
-                      :s "MESRI / Les Crous"
-                      :u url
-                      :m date}))
-                 (map flatten
-                      (partition
-                       2 (partition-by is-a-question? parsed)))))))
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/or (hs/and (hs/tag "h4") (hs/find-in-text #"^.*\?\s*$"))
+               (hs/and (hs/tag "p")
+                       (hs/not (hs/find-in-text #"^.*\?\s*$")))))
+       (drop-while (fn [{:keys [content]}]
+                     (not (and (string? (first content))
+                               (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$"
+                                           (first content))))))
+       (partition-by is-a-question?)
+       (partition 2)
+       (map flatten)
+       (map #(etudiant-entity % url))
+       (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
@@ -241,7 +263,7 @@
         pole-emploi-3 (scrap-pole-emploi pole-emploi-url-3)
         gouvernement  (scrap-gouvernement gouvernement-url)
         education     (scrap-education education-url)
-        travailemploi (scrap-travailemploi travailemploi-url)
+        travailemploi (scrap-travailemploi)
         associations  (scrap-associations associations-url)
         handicap      (scrap-handicap handicap-url)
         etudiant      (scrap-etudiant etudiant-url)
