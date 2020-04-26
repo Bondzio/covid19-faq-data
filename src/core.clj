@@ -218,7 +218,10 @@
         (hs/or (hs/and (hs/tag "strong")
                        (hs/find-in-text #"^.*\?\s*$"))
                (hs/and (hs/tag "p")
-                       (hs/not (hs/find-in-text #"^.*\?\s*$")))))
+                       (hs/not (hs/has-child
+                                (hs/and
+                                 (hs/find-in-text #"^.*\?\s*$")
+                                 (hs/tag "strong")))))))
        (drop-while #(not (string? (first (:content %)))))
        (partition-by #(= (:tag %) :strong))
        (partition 2)
