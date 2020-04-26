@@ -253,6 +253,43 @@
        (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Parse FAQs from https://solidarites-sante.gouv.fr
+
+(def solidaritessante-url-prefix
+  "https://solidarites-sante.gouv.fr/soins-et-maladies/maladies/maladies-infectieuses/coronavirus/tout-savoir-sur-le-covid-19/article/")
+
+(def solidaritessante-urls
+  ["reponses-a-vos-questions-sur-le-covid-19-par-des-medecins"
+   "comment-se-proteger-du-coronavirus-covid-19"
+   "j-ai-des-symptomes-je-suis-malade-covid-19"])
+
+(defn solidaritessante-entity [e url]
+  (when-let [q (not-empty (hi/html (hc/hickory-to-hiccup (first (:content (first e))))))]
+    {:q q
+     :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+     :s "Ministère des Solidarités et de la Santé"
+     :u url
+     :m date}))
+
+(defn scrap-solidaritessante-url [url]
+  (let [url (str solidaritessante-url-prefix url)]
+    (->> (scrap-to-hickory url)
+         (hs/select
+          (hs/or (hs/and (hs/class "ouvrir_fermer")
+                         ;; (hs/find-in-text #"^.*\?\s*$")
+                         )
+                 (hs/tag "p")))
+         (drop-while #(not (= (:tag %) :a)))
+         (partition-by #(= (:tag %) :a))
+         (partition 2)
+         (map flatten)
+         (map #(solidaritessante-entity % url))
+         (remove nil?))))
+
+(defn scrap-solidaritessante []
+  (flatten (map scrap-solidaritessante-url solidaritessante-urls)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn -main []
@@ -267,8 +304,9 @@
         associations  (scrap-associations associations-url)
         handicap      (scrap-handicap handicap-url)
         etudiant      (scrap-etudiant etudiant-url)
+        sante         (scrap-solidaritessante)
         ]
-    (spit "public/faq.json"
+    (spit "docs/faq.json"
           (json/generate-string
            (map-indexed (fn [idx itm] (merge itm {:i idx}))
                         (concat
@@ -282,6 +320,7 @@
                          associations
                          handicap
                          etudiant
+                         sante
                          ))
            true))))
 
