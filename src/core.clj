@@ -7,8 +7,23 @@
             [hiccup.core :as hi]
             [java-time :as t]
             [clojure.zip :as z]
-            [babashka.curl :as curl])
+            [babashka.curl :as curl]
+            [lambdaisland.uri :as uri])
   (:gen-class))
+
+(defn fix-href [p s]
+  (println p s "\n\n")
+  (s/replace
+   s #"href=\"([^\"]+)\""
+   (fn [r]
+     (format "href=\"%s\""
+             (uri/join (uri/uri p)
+                       (uri/uri (last r)))))))
+
+(defn format-answer [url m]
+  (fix-href
+   url
+   (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) m))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables and utility functions
@@ -29,7 +44,7 @@
 
 (defn urssaf-entity [e url]
   {:q (hi/html (last (first e)))
-   :r (hi/html (second e))
+   :r (fix-href url (hi/html (second e)))
    :s "URSSAF"
    :u url
    :m date})
@@ -54,7 +69,9 @@
 (defn poleemploi-entity [e url]
   (when-let [question (not-empty (first (:content (ffirst e))))]
     {:q question
-     :r (s/join "<br/" (map #(hi/html (hc/hickory-to-hiccup (first %))) (rest e)))
+     :r (fix-href
+         url
+         (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) (rest e))))
      :s "Pôle emploi"
      :u url
      :m date}))
@@ -82,7 +99,7 @@
 (defn gouvernement-entity [e url]
   (when-let [question (not-empty (first (:content (first e))))]
     {:q (s/trim question)
-     :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+     :r (format-answer url (rest e))
      :s "Gouvernement"
      :u url
      :m date}))
@@ -106,7 +123,7 @@
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
     (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
       {:q q
-       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :r (format-answer url (rest e))
        :s "Ministère de l'Éducation nationale"
        :u url
        :m date})))
@@ -132,7 +149,7 @@
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
     (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
       {:q q
-       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :r (format-answer url (rest e))
        :s "MENJ - Associations"
        :u url
        :m date})))
@@ -178,7 +195,7 @@
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
     (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
       {:q (s/replace q #"^((\d\.?)+)? *" "")
-       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :r (format-answer url (rest e))
        :s "Ministère du Travail"
        :u url
        :m date})))
@@ -213,7 +230,7 @@
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
     (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
       {:q q
-       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :r (format-answer url (rest e))
        :s "Secrétariat d'État au handicap"
        :u url
        :m date})))
@@ -249,7 +266,7 @@
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
     (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
       {:q q
-       :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+       :r (format-answer url (rest e))
        :s "MESRI / Les Crous"
        :u url
        :m date})))
@@ -284,7 +301,7 @@
 (defn solidaritessante-entity [e url]
   (when-let [q (not-empty (hi/html (hc/hickory-to-hiccup (first (:content (first e))))))]
     {:q q
-     :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
+     :r (format-answer url (rest e))
      :s "Ministère des Solidarités et de la Santé"
      :u url
      :m date}))
@@ -316,9 +333,11 @@
 (defn sfpt-entity [e url]
   (when-let [q (s/trim (first (:content e)))]
     {:q (last (re-matches #"^#[^\s]+\s*(.*)$" q))
-     :r (hi/html [:a {:target "_top"
-                      :href   (str sfpt-base-domain (:href (:attrs e)))}
-                  "Lire la réponse sur le site de la SFPT"])
+     :r (fix-href
+         url
+         (hi/html [:a {:target "new"
+                       :href   (str sfpt-base-domain (:href (:attrs e)))}
+                   "Lire la réponse sur le site de la SFPT"]))
      :s "Société Française de Pharmacologie et de Thérapeutique"
      :u url
      :m date}))
