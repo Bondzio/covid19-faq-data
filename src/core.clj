@@ -46,24 +46,33 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse FAQs from Pôle Emploi
 
-(def pole-emploi-url-1 "https://www.pole-emploi.fr/actualites/information-covid-19.html")
-(def pole-emploi-url-2 "https://www.pole-emploi.fr/actualites/covid-19-activite-partielle-et-a.html")
-(def pole-emploi-url-3 "https://www.pole-emploi.fr/actualites/allongement-exceptionnel-de-lind.html")
+(def poleemploi-urls
+  ["https://www.pole-emploi.fr/actualites/information-covid-19.html"
+   "https://www.pole-emploi.fr/actualites/covid-19-activite-partielle-et-a.html"
+   "https://www.pole-emploi.fr/actualites/allongement-exceptionnel-de-lind.html"])
 
-(defn pole-emploi-entity [e url]
-  (when-let [question (not-empty (first (:content (first e))))]
+(defn poleemploi-entity [e url]
+  (when-let [question (not-empty (first (:content (ffirst e))))]
     {:q question
-     :r (hi/html (hc/hickory-to-hiccup (second e)))
+     :r (s/join "<br/" (map #(hi/html (hc/hickory-to-hiccup (first %))) (rest e)))
      :s "Pôle emploi"
      :u url
      :m date}))
 
-(defn scrap-pole-emploi [url]
+(defn scrap-poleemploi-url [url]
   (->> (scrap-to-hickory url)
-       (hs/select (hs/class "block-article-link"))
-       (map (fn [e] (filter #(not (string? %)) (:content e))))
-       (map #(pole-emploi-entity % url))
+       (hs/select (hs/or (hs/class "t4")
+                         (hs/child
+                          (hs/class "block-article-link")
+                          (hs/or (hs/tag "p") (hs/tag "ul")))))
+       ;; (map (fn [e] (filter #(not (string? %)) (:content e))))
+       (partition-by #(= (:tag %) :h2))
+       (partition 2)
+       (map #(poleemploi-entity % url))
        (remove nil?)))
+
+(defn scrap-poleemploi []
+  (flatten (map scrap-poleemploi-url poleemploi-urls)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse FAQs from gouvernement.fr
@@ -319,9 +328,7 @@
 (defn -main []
   (let [
         urssaf        (scrap-urssaf urssaf-url)
-        pole-emploi-1 (scrap-pole-emploi pole-emploi-url-1)
-        pole-emploi-2 (scrap-pole-emploi pole-emploi-url-2)
-        pole-emploi-3 (scrap-pole-emploi pole-emploi-url-3)
+        poleemploi    (scrap-poleemploi)
         gouvernement  (scrap-gouvernement gouvernement-url)
         education     (scrap-education education-url)
         travailemploi (scrap-travailemploi)
@@ -336,9 +343,7 @@
            (map-indexed (fn [idx itm] (merge itm {:i idx}))
                         (concat
                          urssaf
-                         pole-emploi-1
-                         pole-emploi-2
-                         pole-emploi-3
+                         poleemploi
                          gouvernement
                          education
                          travailemploi
