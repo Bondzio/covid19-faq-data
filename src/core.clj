@@ -240,7 +240,7 @@
 
 (defn is-a-question? [e]
   (when-let [s (not-empty (hi/html (hc/hickory-to-hiccup e)))]
-    (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" s) 2)))
+    (nth (re-matches #"^(<[^>]+>)+(.*\?\s*)(<[^>]+>)+$" s) 2)))
 
 (defn etudiant-entity [e url]
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
