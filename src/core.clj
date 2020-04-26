@@ -290,6 +290,30 @@
   (flatten (map scrap-solidaritessante-url solidaritessante-urls)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Add FAQs from https://www.sfpt-fr.org/covid19-foire-aux-questions
+
+(def sfpt-url "https://www.sfpt-fr.org/covid19-foire-aux-questions")
+(def sfpt-base-domain "https://www.sfpt-fr.org")
+
+(defn sfpt-entity [e url]
+  (when-let [q (s/trim (first (:content e)))]
+    {:q (last (re-matches #"^#[^\s]+\s*(.*)$" q))
+     :r (hi/html [:a {:target "_top"
+                      :href   (str sfpt-base-domain (:href (:attrs e)))}
+                  "Lire la réponse sur le site de la SFPT"])
+     :s "Société Française de Pharmacologie et de Thérapeutique"
+     :u url
+     :m date}))
+
+(defn scrap-sfpt [url]
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/child
+         (hs/and (hs/tag "td") (hs/class "list-title"))
+         (hs/tag "a")))
+       (map #(sfpt-entity % url))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn -main []
@@ -305,6 +329,7 @@
         handicap      (scrap-handicap handicap-url)
         etudiant      (scrap-etudiant etudiant-url)
         sante         (scrap-solidaritessante)
+        sfpt          (scrap-sfpt sfpt-url)
         ]
     (spit "docs/faq.json"
           (json/generate-string
@@ -321,6 +346,7 @@
                          handicap
                          etudiant
                          sante
+                         sfpt
                          ))
            true))))
 
