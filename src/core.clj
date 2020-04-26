@@ -177,7 +177,7 @@
 (defn travailemploi-entity [e url]
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
     (when-let [q (nth (re-matches #"^(<[^>]+>)?(.*\?\s*)(<[^>]+>)?$" q0) 2)]
-      {:q q
+      {:q (s/replace q #"^((\d\.?)+)? *" "")
        :r (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (rest e)))
        :s "Ministère du Travail"
        :u url
