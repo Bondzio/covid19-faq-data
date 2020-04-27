@@ -82,7 +82,6 @@
                          (hs/child
                           (hs/class "block-article-link")
                           (hs/or (hs/tag "p") (hs/tag "ul")))))
-       ;; (map (fn [e] (filter #(not (string? %)) (:content e))))
        (partition-by #(= (:tag %) :h2))
        (partition 2)
        (map #(poleemploi-entity % url))
@@ -274,7 +273,8 @@
 (defn scrap-etudiant [url]
   (->> (scrap-to-hickory url)
        (hs/select
-        (hs/or (hs/and (hs/tag "h4") (hs/find-in-text #"^.*\?\s*$"))
+        (hs/or (hs/and (hs/tag "h4")
+                       (hs/find-in-text #"^.*\?\s*$"))
                (hs/and (hs/tag "p")
                        (hs/not (hs/find-in-text #"^.*\?\s*$")))))
        (drop-while (fn [{:keys [content]}]
@@ -310,9 +310,7 @@
   (let [url (str solidaritessante-url-prefix url)]
     (->> (scrap-to-hickory url)
          (hs/select
-          (hs/or (hs/and (hs/class "ouvrir_fermer")
-                         ;; (hs/find-in-text #"^.*\?\s*$")
-                         )
+          (hs/or (hs/and (hs/class "ouvrir_fermer"))
                  (hs/tag "p")))
          (drop-while #(not (= (:tag %) :a)))
          (partition-by #(= (:tag %) :a))
