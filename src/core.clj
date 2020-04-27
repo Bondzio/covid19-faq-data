@@ -13,6 +13,18 @@
            (java.math BigInteger))
   (:gen-class))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Variables and utility functions
+
+(def date (str (t/local-date-time)))
+
+(defn scrap-to-hickory [url]
+  (try (-> (curl/get url {:raw-args ["-k"]})
+           h/parse
+           h/as-hickory)
+       (catch Exception _
+         (println "Can't get URL:" url))))
+
 (defn md5 [^String s]
   (let [algorithm (MessageDigest/getInstance "MD5")
         raw       (.digest algorithm (.getBytes s))]
@@ -50,18 +62,6 @@
          (fix-href url)
          (fix-headers)
          (fix-ul-li))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Variables and utility functions
-
-(def date (str (t/local-date-time)))
-
-(defn scrap-to-hickory [url]
-  (try (-> (curl/get url {:raw-args ["-k"]})
-           h/parse
-           h/as-hickory)
-       (catch Exception _
-         (println "Can't get URL:" url))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse FAQs URSSAF
