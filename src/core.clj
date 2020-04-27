@@ -46,6 +46,11 @@
       (s/replace "<ul>" "<ul class=\"list\">")
       (s/replace "<li>" "<li class=\"list-item\">")))
 
+(defn fix-empty-p [s]
+  (s/replace s #"<p>\s*(<br/?>)*\s*</p>" ""))
+
+(def sfpt-base-domain "https://www.sfpt-fr.org")
+
 (defn format-answer [url m]
   (let [s (condp #(re-matches %1 %2) url
             #"^.*urssaf.*$"
@@ -61,7 +66,8 @@
     (->> s
          (fix-href url)
          (fix-headers)
-         (fix-ul-li))))
+         (fix-ul-li)
+         (fix-empty-p))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse FAQs URSSAF
@@ -350,7 +356,6 @@
 ;; Add FAQs from https://www.sfpt-fr.org/covid19-foire-aux-questions
 
 (def sfpt-url "https://www.sfpt-fr.org/covid19-foire-aux-questions")
-(def sfpt-base-domain "https://www.sfpt-fr.org")
 
 (defn sfpt-entity [e url]
   (when-let [q (s/trim (first (:content e)))]
