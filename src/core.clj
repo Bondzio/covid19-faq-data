@@ -47,7 +47,7 @@
       (s/replace "<li>" "<li class=\"list-item\">")))
 
 (defn fix-empty-p [s]
-  (s/replace s #"<p>\s*(<br/?>)*\s*</p>" ""))
+  (s/replace s #"<p>\s*(\s*<br/?>\s*)*\s*</p>" ""))
 
 (def sfpt-base-domain "https://www.sfpt-fr.org")
 
