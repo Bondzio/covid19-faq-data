@@ -12,7 +12,6 @@
   (:gen-class))
 
 (defn fix-href [p s]
-  (println p s "\n\n")
   (s/replace
    s #"href=\"([^\"]+)\""
    (fn [r]
@@ -21,9 +20,18 @@
                        (uri/uri (last r)))))))
 
 (defn format-answer [url m]
-  (fix-href
-   url
-   (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) m))))
+  (let [s (condp #(re-matches %1 %2) url
+            #"^.*urssaf.*$"
+            (hi/html m)
+            #"^.*pole-emploi.*$"
+            (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) m))
+            #"^.*sfpt.*$"
+            (hi/html [:a {:target "new"
+                          :href   (str sfpt-base-domain (:href (:attrs m)))}
+                      "Lire la réponse sur le site de la SFPT"])
+            ;; Default:
+            (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) m)))]
+    (fix-href url s)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables and utility functions
@@ -44,7 +52,7 @@
 
 (defn urssaf-entity [e url]
   {:q (hi/html (last (first e)))
-   :r (fix-href url (hi/html (second e)))
+   :r (format-answer url (second e))
    :s "URSSAF"
    :u url
    :m date})
@@ -69,9 +77,7 @@
 (defn poleemploi-entity [e url]
   (when-let [question (not-empty (first (:content (ffirst e))))]
     {:q question
-     :r (fix-href
-         url
-         (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) (rest e))))
+     :r (format-answer url (rest e))
      :s "Pôle emploi"
      :u url
      :m date}))
@@ -331,11 +337,7 @@
 (defn sfpt-entity [e url]
   (when-let [q (s/trim (first (:content e)))]
     {:q (last (re-matches #"^#[^\s]+\s*(.*)$" q))
-     :r (fix-href
-         url
-         (hi/html [:a {:target "new"
-                       :href   (str sfpt-base-domain (:href (:attrs e)))}
-                   "Lire la réponse sur le site de la SFPT"]))
+     :r (format-answer url e)
      :s "Société Française de Pharmacologie et de Thérapeutique"
      :u url
      :m date}))
