@@ -9,7 +9,14 @@
             [clojure.zip :as z]
             [babashka.curl :as curl]
             [lambdaisland.uri :as uri])
+  (:import (java.security MessageDigest)
+           (java.math BigInteger))
   (:gen-class))
+
+(defn md5 [^String s]
+  (let [algorithm (MessageDigest/getInstance "MD5")
+        raw       (.digest algorithm (.getBytes s))]
+    (format "%032x" (BigInteger. 1 raw))))
 
 (defn fix-href [p s]
   (s/replace
@@ -18,6 +25,14 @@
      (format "href=\"%s\""
              (uri/join (uri/uri p)
                        (uri/uri (last r)))))))
+
+(defn fix-headers [s]
+  (s/replace s #"<(/?)h\d>" "<$1strong class=\"is-size-4\"><br/>"))
+
+(defn fix-ul-li [s]
+  (-> s
+      (s/replace "<ul>" "<ul class=\"list\">")
+      (s/replace "<li>" "<li class=\"list-item\">")))
 
 (defn format-answer [url m]
   (let [s (condp #(re-matches %1 %2) url
@@ -31,7 +46,10 @@
                       "Lire la réponse sur le site de la SFPT"])
             ;; Default:
             (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) m)))]
-    (fix-href url s)))
+    (->> s
+         (fix-href url)
+         (fix-headers)
+         (fix-ul-li))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables and utility functions
@@ -368,19 +386,19 @@
         ]
     (spit "docs/faq.json"
           (json/generate-string
-           (map-indexed (fn [idx itm] (merge itm {:i idx}))
-                        (concat
-                         urssaf
-                         poleemploi
-                         gouvernement
-                         education
-                         travailemploi
-                         associations
-                         handicap
-                         etudiant
-                         sante
-                         sfpt
-                         ))
+           (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %)))})
+                (concat
+                 urssaf
+                 poleemploi
+                 gouvernement
+                 education
+                 travailemploi
+                 associations
+                 handicap
+                 etudiant
+                 sante
+                 sfpt
+                 ))
            true))))
 
 ;; (-main)
