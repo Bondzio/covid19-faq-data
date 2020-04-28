@@ -146,7 +146,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse FAQs from education.gouv.fr
 
-(def education-url "https://www.education.gouv.fr/coronavirus-covid-19-informations-et-recommandations-pour-les-etablissements-scolaires-et-les-274253")
+(def education-urls
+  ["https://www.education.gouv.fr/coronavirus-covid-19-informations-et-recommandations-pour-les-etablissements-scolaires-et-les-274253"
+   "https://www.education.gouv.fr/bac-brevet-2020-les-reponses-vos-questions-303348"])
 
 (defn education-entity [e url]
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
@@ -157,7 +159,7 @@
        :u url
        :m date})))
 
-(defn scrap-education [url]
+(defn scrap-education-url [url]
   (->> (scrap-to-hickory url)
        (hs/select
         (hs/or (hs/and (hs/tag "h3") (hs/class "title"))
@@ -168,6 +170,9 @@
        (map flatten)
        (map #(education-entity % url))
        (remove nil?)))
+
+(defn scrap-education []
+  (flatten (map scrap-education-url education-urls)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Parse FAQs from https://www.associations.gouv.fr
