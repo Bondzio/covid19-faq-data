@@ -386,29 +386,29 @@
         urssaf        (scrap-urssaf urssaf-url)
         poleemploi    (scrap-poleemploi)
         gouvernement  (scrap-gouvernement gouvernement-url)
-        education     (scrap-education education-url)
+        education     (scrap-education)
         travailemploi (scrap-travailemploi)
         associations  (scrap-associations associations-url)
         handicap      (scrap-handicap handicap-url)
         etudiant      (scrap-etudiant etudiant-url)
         sante         (scrap-solidaritessante)
         sfpt          (scrap-sfpt sfpt-url)
-        ]
-    (spit "docs/faq.json"
-          (json/generate-string
-           (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %)))})
-                (concat
-                 urssaf
-                 poleemploi
-                 gouvernement
-                 education
-                 travailemploi
-                 associations
-                 handicap
-                 etudiant
-                 sante
-                 sfpt
-                 ))
-           true))))
+        all           (concat
+                       urssaf
+                       poleemploi
+                       gouvernement
+                       education
+                       travailemploi
+                       associations
+                       handicap
+                       etudiant
+                       sante
+                       sfpt
+                       )
+        all-with-id   (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %)))})
+                           all)
+        questions     (map #(dissoc % :r :u :m) all-with-id)]
+    (spit "docs/faq.json" (json/generate-string all-with-id true))
+    (spit "docs/faq-questions.json" (json/generate-string questions true))))
 
 ;; (-main)
