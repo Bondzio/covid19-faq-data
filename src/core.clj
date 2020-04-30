@@ -18,6 +18,9 @@
 
 (def date (str (t/local-date-time)))
 
+(def upload-dir "docs/")
+(def answers-dir "answers/")
+
 (defn scrap-to-hickory [url]
   (try (-> (curl/get url {:raw-args ["-k"]})
            h/parse
@@ -405,10 +408,13 @@
                        sante
                        sfpt
                        )
-        all-with-id   (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %)))})
-                           all)
-        questions     (map #(dissoc % :r :u :m) all-with-id)]
-    (spit "docs/faq.json" (json/generate-string all-with-id true))
-    (spit "docs/faq-questions.json" (json/generate-string questions true))))
-
-;; (-main)
+        all-with-id
+        (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %)))}) all)]
+    (spit (str upload-dir "faq.json")
+          (-> all-with-id (json/generate-string true)))
+    (spit (str upload-dir "faq-questions.json")
+          (-> (map #(select-keys % [:q :i :s]) all-with-id)
+              (json/generate-string true)))
+    (doseq [faq all-with-id]
+      (spit (str upload-dir answers-dir (:i faq) ".json")
+            (json/generate-string faq true)))))
