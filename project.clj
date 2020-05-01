@@ -4,6 +4,8 @@
   :license {:name "Eclipse Public License - v 2.0"
             :url  "http://www.eclipse.org/legal/epl-v20.html"}
   :dependencies [[org.clojure/clojure "1.10.1"]
+                 [org.clojure/core.async "1.1.587"]
+                 [jarohen/chime "0.3.2"]
                  [hickory "0.7.1"]
                  [cheshire "5.10.0"]
                  [hiccup "1.0.5"]
