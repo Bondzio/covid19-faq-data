@@ -46,7 +46,7 @@
 
 (defn fix-ul-li [s]
   (-> s
-      (s/replace "<ul>" "<ul class=\"list\">")
+      (s/replace "<ul>" "<br/><ul class=\"list\">")
       (s/replace "<li>" "<li class=\"list-item\">")))
 
 (defn fix-empty-p [s]
