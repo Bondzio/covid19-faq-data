@@ -45,9 +45,7 @@
   (s/replace s #"<(/?)h\d>" "<$1strong class=\"is-size-4\"><br/>"))
 
 (defn fix-ul-li [s]
-  (-> s
-      (s/replace "<ul>" "<br/><ul class=\"list\">")
-      (s/replace "<li>" "<li class=\"list-item\">")))
+  (str "<div class=\"content\">" s "</div>"))
 
 (defn fix-empty-p [s]
   (s/replace s #"<p>\s*(\s*<br/?>\s*)*\s*</p>" ""))
