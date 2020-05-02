@@ -14,7 +14,9 @@
                  [metosin/pohjavirta "0.0.1-alpha7"]
                  [metosin/jsonista "0.2.5"]
                  [metosin/reitit      "0.4.2"]
-                 [metosin/reitit-ring "0.4.2"]]
+                 [metosin/reitit-ring "0.4.2"]
+                 [metosin/reitit-middleware "0.4.2"]
+                 [ring-cors "0.1.13"]]
   :clean-targets ^{:protect false} ["target" "public"]
   :aliases {"run" ["trampoline" "run" "-m" "core"]}
   )

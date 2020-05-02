@@ -4,34 +4,42 @@
  :license     {:name "Eclipse Public License - v 2.0"
                :url  "http://www.eclipse.org/legal/epl-v20.html"}
 
- :deps {org.clojure/clojure    {:mvn/version "1.10.1"}
-        org.clojure/core.async {:mvn/version "1.1.587"}
-        jarohen/chime          {:mvn/version "0.3.2"}
-        hickory                {:mvn/version "0.7.1"}
-        cheshire               {:mvn/version "5.10.0"}
-        hiccup                 {:mvn/version "1.0.5"}
-        clojure.java-time      {:mvn/version "0.3.2"}
-        borkdude/babashka      {:mvn/version "0.0.75"}
-        lambdaisland/uri       {:mvn/version "1.2.1"}
-        metosin/pohjavirta     {:mvn/version "0.0.1-alpha7"}
-        metosin/jsonista       {:mvn/version "0.2.5"}
-        metosin/reitit         {:mvn/version "0.4.2"}
-        metosin/reitit-ring    {:mvn/version "0.4.2"}}
+ :deps {org.clojure/clojure       {:mvn/version "1.10.1"}
+        org.clojure/core.async    {:mvn/version "1.1.587"}
+        jarohen/chime             {:mvn/version "0.3.2"}
+        hickory                   {:mvn/version "0.7.1"}
+        cheshire                  {:mvn/version "5.10.0"}
+        hiccup                    {:mvn/version "1.0.5"}
+        clojure.java-time         {:mvn/version "0.3.2"}
+        borkdude/babashka         {:mvn/version "0.0.75"}
+        lambdaisland/uri          {:mvn/version "1.2.1"}
+        metosin/pohjavirta        {:mvn/version "0.0.1-alpha7"}
+        metosin/jsonista          {:mvn/version "0.2.5"}
+        metosin/reitit            {:mvn/version "0.4.2"}
+        metosin/reitit-ring       {:mvn/version "0.4.2"}
+        metosin/reitit-middleware {:mvn/version "0.4.2"}
+        ring-cors                 {:mvn/version "0.1.13"}}
 
- :aliases {:native-image
-           {:main-opts ["-m clj.native-image core"
-                        ;; "--verbose"
-                        "--no-fallback"
-                        "--report-unsupported-elements-at-runtime"
-                        "--initialize-at-build-time"
-                        ;; Allow https get
-                        "-H:EnableURLProtocols=https"
-                        ;; Display backtraces
-                        "-H:+ReportExceptionStackTraces"
-                        ;; Optional native image name override
-                        "-H:Name=covid19-faq-data"]
-            :jvm-opts  ["-Dclojure.compiler.direct-linking=true"]
-            :extra-deps
-            {clj.native-image
-             {:git/url "https://github.com/taylorwood/clj.native-image.git"
-              :sha     "602587dfb5243ea8c72ed3e967c37c1f9d611723"}}}}}
+ :aliases
+ {:api  {:main-opts ["-m core"]}
+  :json {:main-opts ["-m core make-json"]}
+  :jar  {:extra-deps {seancorfield/depstar {:mvn/version "RELEASE"}}
+         :main-opts  ["-m" "hf.depstar.uberjar" "covid19-faq.jar"
+                      "-C" "-m" "core"]}
+  :native-image
+  {:main-opts ["-m clj.native-image core"
+               ;; "--verbose"
+               "--no-fallback"
+               "--report-unsupported-elements-at-runtime"
+               "--initialize-at-build-time"
+               ;; Allow https get
+               "-H:EnableURLProtocols=https"
+               ;; Display backtraces
+               "-H:+ReportExceptionStackTraces"
+               ;; Optional native image name override
+               "-H:Name=covid19-faq-data"]
+   :jvm-opts  ["-Dclojure.compiler.direct-linking=true"]
+   :extra-deps
+   {clj.native-image
+    {:git/url "https://github.com/taylorwood/clj.native-image.git"
+     :sha     "602587dfb5243ea8c72ed3e967c37c1f9d611723"}}}}}
