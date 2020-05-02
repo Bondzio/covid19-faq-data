@@ -3,3 +3,4 @@ target/
 classes/
 todo.org
 .nrepl-port
+stats.edn
