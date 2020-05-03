@@ -6,7 +6,6 @@
             [hickory.select :as hs]
             [hiccup.core :as hi]
             [java-time :as t]
-            [clojure.zip :as z]
             [babashka.curl :as curl]
             [lambdaisland.uri :as uri]
             [clojure.java.shell :as shell])

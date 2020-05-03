@@ -68,10 +68,10 @@
 (defn get-token [_]
   (let [token (str (java.util.UUID/randomUUID))
         date  (str (t/instant))]
-    (do (swap! valid-tokens conj {token date})
-        (wrap-headers
-         {:status 200
-          :body   (j/write-value-as-string {:token token})}))))
+    (swap! valid-tokens conj {token date})
+    (wrap-headers
+     {:status 200
+      :body   (j/write-value-as-string {:token token})})))
 
 (defn get-stats [_]
   (wrap-headers
@@ -120,12 +120,11 @@
       (if (valid-date? date-token)
         (let [cnt  (get-in @stats [id :note :count])
               note (edn/read-string note)]
-          (try
-            (do (swap! stats update-in [id :note :count] inc)
-                (swap! stats update-in [id :note :mean]
-                       #(mean % cnt note))
-                (prn-resp 200 "Note taken"))
-            (catch Exception _ nil)))
+          (try (swap! stats update-in [id :note :count] inc)
+               (swap! stats update-in [id :note :mean]
+                      #(mean % cnt note))
+               (prn-resp 200 "Note taken")
+               (catch Exception _ nil)))
         (prn-resp 400 "Invalid token"))
       (prn-resp 400 "Token not found"))))
 
