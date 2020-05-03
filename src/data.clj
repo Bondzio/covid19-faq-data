@@ -45,9 +45,6 @@
 (defn fix-headers [s]
   (s/replace s #"(?is)<(/?)h\d>" "<$1strong class=\"is-size-4\"><br/>"))
 
-(defn fix-ul-li [s]
-  (str "<div class=\"content\">" s "</div>"))
-
 (defn fix-empty-p [s]
   (-> s
       (s/replace #"(?is)<p>\s*(\s*<br\s*/?>\s*)*\s*</p>" "")
@@ -70,7 +67,6 @@
     (->> s
          (fix-href url)
          (fix-headers)
-         (fix-ul-li)
          (fix-empty-p))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
