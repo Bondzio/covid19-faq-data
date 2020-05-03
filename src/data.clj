@@ -36,20 +36,22 @@
 
 (defn fix-href [p s]
   (s/replace
-   s #"href=\"([^\"]+)\""
+   s #"(?is)href=\"([^\"]+)\""
    (fn [r]
      (format "href=\"%s\""
              (uri/join (uri/uri p)
                        (uri/uri (last r)))))))
 
 (defn fix-headers [s]
-  (s/replace s #"<(/?)h\d>" "<$1strong class=\"is-size-4\"><br/>"))
+  (s/replace s #"(?is)<(/?)h\d>" "<$1strong class=\"is-size-4\"><br/>"))
 
 (defn fix-ul-li [s]
   (str "<div class=\"content\">" s "</div>"))
 
 (defn fix-empty-p [s]
-  (s/replace s #"<p>\s*(\s*<br/?>\s*)*\s*</p>" ""))
+  (-> s
+      (s/replace #"(?is)<p>\s*(\s*<br\s*/?>\s*)*\s*</p>" "")
+      (s/replace #"(?is)</p>\s*(\s*<br\s*/?>\s*)*\s*<p>" "</p><p>")))
 
 (def sfpt-base-domain "https://www.sfpt-fr.org")
 
