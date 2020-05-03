@@ -12,7 +12,7 @@
             [reitit.ring.middleware.parameters :as parameters]
             [ring.middleware.cors :refer [wrap-cors]]))
 
-(defonce dev? true)
+(defonce dev? false)
 (defonce port 3000)
 (defonce front-url "http://localhost:9500")
 
@@ -30,12 +30,21 @@
                       questions-ids)
                  (into {})))))
 
+(def store-stats-chan (async/chan))
+
+(async/go
+  (loop [stats-str (async/<! store-stats-chan)]
+    (when (string? stats-str)
+      (spit "stats.edn" stats-str))
+    (recur (async/<! store-stats-chan))))
+
 (add-watch
  stats :backup
  (fn [_ a _ _]
    (when (zero? (mod (apply + (map :hits (vals @a))) 10))
      (when dev? (println "Saving to stats.edn..."))
-     (spit "stats.edn" (pr-str @a)))))
+     (async/thread
+       (async/>!! store-stats-chan (pr-str @a))))))
 
 (def valid-tokens (atom {}))
 
@@ -45,7 +54,8 @@
             (filter #(not= two-hours-ago
                            (t/max two-hours-ago
                                   (t/instant (val (first %)))))
-                    @valid-tokens))))
+                    @valid-tokens))
+    (println "Tokens purged")))
 
 (defn wrap-headers [m]
   (assoc m :headers {"Content-Type" "application/json"}))
@@ -110,11 +120,11 @@
 
 (defn start-tokens-purge-loop []
   (let [chimes (chime-ch (chime/periodic-seq
-                          (t/instant) (t/seconds 5)))]
-    (async/<!! (async/go-loop []
-                 (when (async/<! chimes)
-                   (purge-tokens)
-                   (recur))))))
+                          (t/instant) (t/hours 2)))]
+    (async/go-loop []
+      (when (async/<! chimes)
+        (purge-tokens)
+        (recur)))))
 
 (defn -main [& [json]]
   (if json ;; Any value is OK
@@ -122,8 +132,6 @@
       (data/move-old-answers)
       (data/generate-json))
     (do
-      (when-not dev?
-        (start-storing-stats-loop)
-        (start-tokens-purge-loop))
+      (when dev? (start-tokens-purge-loop))
       (-> app (server/create {:port port}) server/start)
       (println "API started on localhost:3000"))))
