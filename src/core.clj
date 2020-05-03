@@ -12,7 +12,7 @@
             [reitit.ring.middleware.parameters :as parameters]
             [ring.middleware.cors :refer [wrap-cors]]))
 
-(defonce dev? false)
+(defonce dev? true)
 (defonce port 3000)
 (defonce front-url "http://localhost:9500")
 
@@ -24,11 +24,12 @@
        flatten))
 
 (def stats
-  (atom (or (edn/read-string
-             (try (slurp "stats.edn") (catch Exception _ nil)))
-            (->> (map (fn [a] {a {:hits 0}})
-                      questions-ids)
-                 (into {})))))
+  (atom
+   (or (edn/read-string
+        (try (slurp "stats.edn") (catch Exception _ nil)))
+       (->> (map (fn [a] {a {:hits 0 :note {:count 0 :mean 0}}})
+                 questions-ids)
+            (into {})))))
 
 (def store-stats-chan (async/chan))
 
@@ -50,12 +51,16 @@
 
 (defn purge-tokens []
   (let [two-hours-ago (t/minus (t/instant) (t/hours 2))]
-    (reset! valid-tokens
-            (filter #(not= two-hours-ago
-                           (t/max two-hours-ago
-                                  (t/instant (val (first %)))))
-                    @valid-tokens))
-    (println "Tokens purged")))
+    (if (seq @valid-tokens)
+      (do (reset! valid-tokens
+                  (into {}
+                        (filter
+                         #(not= two-hours-ago
+                                (t/max two-hours-ago
+                                       (t/instant (last %))))
+                         @valid-tokens)))
+          (println "Tokens purged"))
+      (println "Pas de token"))))
 
 (defn wrap-headers [m]
   (assoc m :headers {"Content-Type" "application/json"}))
@@ -98,8 +103,29 @@
         {:keys [id token]} params]
     (if-let [date-token (get @valid-tokens token)]
       (if (valid-date? date-token)
-        (do (swap! stats #(update-in % [id :hits] inc))
+        (do (swap! stats update-in [id :hits] inc)
             (prn-resp 200 "All good"))
+        (prn-resp 400 "Invalid token"))
+      (prn-resp 400 "Token not found"))))
+
+(defn mean [old-mean old-cnt note]
+  (float (/ (+ (* old-mean old-cnt) note)
+            (inc old-cnt))))
+
+(defn note [{params :query-params}]
+  (let [params
+        (walk/keywordize-keys params)
+        {:keys [id token note]} params]
+    (if-let [date-token (get @valid-tokens token)]
+      (if (valid-date? date-token)
+        (let [cnt  (get-in @stats [id :note :count])
+              note (edn/read-string note)]
+          (try
+            (do (swap! stats update-in [id :note :count] inc)
+                (swap! stats update-in [id :note :mean]
+                       #(mean % cnt note))
+                (prn-resp 200 "Note taken"))
+            (catch Exception _ nil)))
         (prn-resp 400 "Invalid token"))
       (prn-resp 400 "Token not found"))))
 
@@ -108,6 +134,7 @@
    (ring/router
     [["/token" {:get get-token}]
      ["/stats" {:get get-stats}]
+     ["/note" {:get note}]
      ["/hit" {:get hit}]])
    (ring/create-default-handler)
    {:middleware
