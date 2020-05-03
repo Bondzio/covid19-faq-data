@@ -101,7 +101,7 @@
     (if-let [date-token (get @valid-tokens token)]
       (if (valid-date? date-token)
         (do (swap! stats update-in [id :hits] inc)
-            (prn-resp 200 "All good"))
+            (prn-resp 200 "OK"))
         (prn-resp 400 "Invalid token"))
       (prn-resp 400 "Token not found"))))
 
@@ -120,7 +120,7 @@
           (try (swap! stats update-in [id :note :count] inc)
                (swap! stats update-in [id :note :mean]
                       #(mean % cnt note))
-               (prn-resp 200 "Note taken")
+               (prn-resp 200 "OK")
                (catch Exception _ nil)))
         (prn-resp 400 "Invalid token"))
       (prn-resp 400 "Token not found"))))
