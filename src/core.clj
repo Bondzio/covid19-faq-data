@@ -117,8 +117,13 @@
                    (recur))))))
 
 (defn -main [& [json]]
-  (if json
-    (data/generate-json)
-    (do (if-not dev? (start-tokens-purge-loop))
-        (-> app (server/create {:port port}) server/start)
-        (println "API started on localhost:3000"))))
+  (if json ;; Any value is OK
+    (do
+      (data/move-old-answers)
+      (data/generate-json))
+    (do
+      (when-not dev?
+        (start-storing-stats-loop)
+        (start-tokens-purge-loop))
+      (-> app (server/create {:port port}) server/start)
+      (println "API started on localhost:3000"))))

@@ -8,7 +8,8 @@
             [java-time :as t]
             [clojure.zip :as z]
             [babashka.curl :as curl]
-            [lambdaisland.uri :as uri])
+            [lambdaisland.uri :as uri]
+            [clojure.java.shell :as shell])
   (:import (java.security MessageDigest)
            (java.math BigInteger))
   (:gen-class))
@@ -381,6 +382,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
+
+(defn move-old-answers []
+  (shell/with-sh-dir (str upload-dir answers-dir)
+    (shell/sh "bash" "-c" "mv *json outdated/")))
 
 (defn generate-json []
   (let [
