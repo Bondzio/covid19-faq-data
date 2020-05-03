@@ -76,10 +76,7 @@
 (defn get-stats [_]
   (wrap-headers
    {:status 200
-    :body   (j/write-value-as-string
-             (map (fn [[k v]]
-                    (into {} (concat {:i k} v)))
-                  @stats))}))
+    :body   (j/write-value-as-string @stats)}))
 
 ;; Reject answers when visit is < 5 secondes or > 1 hour
 (defn valid-date? [date-token]
