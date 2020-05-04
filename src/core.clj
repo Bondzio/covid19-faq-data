@@ -12,9 +12,12 @@
             [reitit.ring.middleware.parameters :as parameters]
             [ring.middleware.cors :refer [wrap-cors]]))
 
-(defonce dev? true)
+(defonce dev? false)
 (defonce port 3000)
-(defonce front-url "http://localhost:9500")
+(defonce front-url
+  (if dev?
+    "https://locahost:9500"
+    "https://www.covid19-faq.fr"))
 
 (def questions-ids
   (->> (j/read-value
