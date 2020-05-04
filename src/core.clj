@@ -14,10 +14,13 @@
 
 (defonce dev? false)
 (defonce port 3000)
+
 (defonce front-url
   (if dev?
-    "https://locahost:9500"
-    "https://www.covid19-faq.fr"))
+    #"http://localhost:9500"
+    #"https://www.covid19-faq.fr"))
+
+(defonce spit-every-x-hits 100)
 
 (def questions-ids
   (->> (j/read-value
@@ -45,7 +48,8 @@
 (add-watch
  stats :backup
  (fn [_ a _ _]
-   (when (zero? (mod (apply + (map :hits (vals @a))) 10))
+   (when (zero? (mod (apply + (map :hits (vals @a)))
+                     spit-every-x-hits))
      (when dev? (println "Saving to stats.edn..."))
      (async/thread
        (async/>!! store-stats-chan (pr-str @a))))))
@@ -91,11 +95,10 @@
          (= dt+600 (t/max dt+600 da)))))
 
 (defn prn-resp [status msg]
-  (when dev?
-    (wrap-headers
-     {:status status
-      :body   (j/write-value-as-string
-               {:response msg})})))
+  (wrap-headers
+   {:status status
+    :body   (j/write-value-as-string
+             {:response msg})}))
 
 (defn hit [{params :query-params}]
   (let [params
@@ -120,11 +123,10 @@
       (if (valid-date? date-token)
         (let [cnt  (get-in @stats [id :note :count])
               note (edn/read-string note)]
-          (try (swap! stats update-in [id :note :count] inc)
-               (swap! stats update-in [id :note :mean]
-                      #(mean % cnt note))
-               (prn-resp 200 "OK")
-               (catch Exception _ nil)))
+          (do (swap! stats update-in [id :note :count] inc)
+              (swap! stats update-in [id :note :mean]
+                     #(mean % cnt note))
+              (prn-resp 200 "OK")))
         (prn-resp 400 "Invalid token"))
       (prn-resp 400 "Token not found"))))
 
@@ -140,9 +142,8 @@
     [parameters/parameters-middleware
      #(wrap-cors
        %
-       :access-control-allow-origin [(re-pattern front-url)]
-       :access-control-allow-headers ["Content-Type"]
-       :access-control-allow-methods [:get :post])]}))
+       :access-control-allow-origin [front-url]
+       :access-control-allow-methods [:get])]}))
 
 (defn start-tokens-purge-loop []
   (let [chimes (chime-ch (chime/periodic-seq
