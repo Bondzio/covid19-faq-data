@@ -8,7 +8,9 @@
             [java-time :as t]
             [babashka.curl :as curl]
             [lambdaisland.uri :as uri]
-            [clojure.java.shell :as shell])
+            [clojure.java.shell :as shell]
+            [clojure.walk :as walk]
+            [clojure.edn :as edn])
   (:import (java.security MessageDigest)
            (java.math BigInteger))
   (:gen-class))
@@ -62,6 +64,9 @@
             (hi/html m)
             #"^.*defense.*$"
             (hi/html (hc/hickory-to-hiccup m))
+            #"^.*economie.*$"
+            (format "La réponse sur <a target=\"new\" href=\"%s\">le site du Ministère de l'Économie et des Finanances.</a>" m)
+            
             #"^.*pole-emploi.*$"
             (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) m))
             #"^.*sfpt.*$"
@@ -364,7 +369,7 @@
   (flatten (map scrap-solidaritessante-url solidaritessante-urls)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Add FAQs from https://www.sfpt-fr.org/covid19-foire-aux-questions
+;; Add FAQs from https://www.sfpt-fr.org
 
 (def sfpt-url "https://www.sfpt-fr.org/covid19-foire-aux-questions")
 
@@ -385,7 +390,7 @@
        (map #(sfpt-entity % url))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Add FAQs from https://www.defense.gouv.fr/actualites/articles/ministere-des-armees-covid-19-foire-aux-questions
+;; Add FAQs from https://www.defense.gouv.fr
 
 (def defense-url "https://www.defense.gouv.fr/actualites/articles/ministere-des-armees-covid-19-foire-aux-questions")
 
@@ -411,6 +416,36 @@
        (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Add FAQs from https://www.economie.gouv.fr
+
+(def economie-url
+  "https://info-entreprises-covid19.economie.gouv.fr/kb")
+
+(defn economie-entity [e url]
+  (when-let [q (re-matches #"^.*\s*\?\s*$" (first e))]
+    {:q q
+     :r (format-answer url (second e))
+     :s "Ministère de l'Économie et des Finances"
+     :u url
+     :m date}))
+
+(defn scrap-economie [url]
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/find-in-text #"^.*languages.*"))
+       first
+       :content
+       (map #(json/parse-string % true))
+       first
+       :helpcenterData
+       :containers
+       (map (fn [{:keys [status title id]}]
+              (when (= status "published")
+                [title (str economie-url "/explanation/" id)])))
+       (remove nil?)
+       (map #(economie-entity % url))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn move-old-answers []
@@ -430,6 +465,7 @@
         sante         (scrap-solidaritessante)
         sfpt          (scrap-sfpt sfpt-url)
         defense       (scrap-defense defense-url) ;; No URL, local file
+        economie      (scrap-economie economie-url)
         all           (concat
                        urssaf
                        poleemploi
@@ -441,6 +477,8 @@
                        etudiant
                        sante
                        sfpt
+                       defense
+                       economie
                        )
         all-with-id
         (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %)))}) all)]
