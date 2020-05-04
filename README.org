@@ -49,4 +49,4 @@ faisant un don à [[https://www.clojuriststogether.org][clojuriststogether.org]]
 
 2020 Bastien Guerry.
 
-Le code source de ce dépôt est publiée sous licence EPL 2.0.
+Le code source de ce dépôt est publiée sous licence [[file:LICENSE][EPL 2.0]].
