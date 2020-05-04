@@ -443,7 +443,8 @@
               (when (= status "published")
                 [title (str economie-url "/explanation/" id)])))
        (remove nil?)
-       (map #(economie-entity % url))))
+       (map #(economie-entity % url))
+       (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
