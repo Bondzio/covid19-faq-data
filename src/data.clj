@@ -21,8 +21,9 @@
 (def upload-dir "docs/")
 (def answers-dir "answers/")
 
-(defn scrap-to-hickory [url]
-  (try (-> (curl/get url {:raw-args ["-k"]})
+(defn scrap-to-hickory [url & [file]]
+  (try (-> (if file (slurp file)
+               (curl/get url {:raw-args ["-k"]}))
            h/parse
            h/as-hickory)
        (catch Exception _
@@ -42,12 +43,16 @@
                        (uri/uri (last r)))))))
 
 (defn fix-headers [s]
-  (s/replace s #"(?is)<(/?)h\d>" "<$1strong class=\"is-size-4\"><br/>"))
+  (s/replace s #"(?is)<(/?)h\d>"
+             "<$1strong class=\"is-size-4\"><br/>"))
 
 (defn fix-empty-p [s]
   (-> s
       (s/replace #"(?is)<p>\s*(\s*<br\s*/?>\s*)*\s*</p>" "")
       (s/replace #"(?is)</p>\s*(\s*<br\s*/?>\s*)*\s*<p>" "</p><p>")))
+
+(defn cleanup-beg-end-tags [s] ;; Fixme: allow "<" in questions?
+  (s/replace s #"(?is)^\s*(<[^>]+>\s*)+\s*([^<]+)\s*(<[^>]+>\s*)+$" "$2"))
 
 (def sfpt-base-domain "https://www.sfpt-fr.org")
 
@@ -55,6 +60,8 @@
   (let [s (condp #(re-matches %1 %2) url
             #"^.*urssaf.*$"
             (hi/html m)
+            #"^.*defense.*$"
+            (hi/html (hc/hickory-to-hiccup m))
             #"^.*pole-emploi.*$"
             (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) m))
             #"^.*sfpt.*$"
@@ -378,6 +385,32 @@
        (map #(sfpt-entity % url))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Add FAQs from https://www.defense.gouv.fr/actualites/articles/ministere-des-armees-covid-19-foire-aux-questions
+
+(def defense-url "https://www.defense.gouv.fr/actualites/articles/ministere-des-armees-covid-19-foire-aux-questions")
+
+(defn defense-entity [e url]
+  (let [q (cleanup-beg-end-tags
+           (s/trim (hi/html (hc/hickory-to-hiccup (first e)))))]
+    (when-let [q (re-matches #"^.*\s*\?\s*$" q)]
+      {:q q
+       :r (format-answer url (second e))
+       :s "Ministère des armées"
+       :u url
+       :m date})))
+
+(defn scrap-defense [url]
+  (->> (scrap-to-hickory nil "websites/defense-2020-05-04.html")
+       (hs/select
+        (hs/or (hs/descendant (hs/class "panel-heading")
+                              (hs/tag "strong"))
+               (hs/class "panel-body")))
+       (partition 2)
+       (map flatten)
+       (map #(defense-entity % url))
+       (remove nil?)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn move-old-answers []
@@ -396,6 +429,7 @@
         etudiant      (scrap-etudiant etudiant-url)
         sante         (scrap-solidaritessante)
         sfpt          (scrap-sfpt sfpt-url)
+        defense       (scrap-defense defense-url) ;; No URL, local file
         all           (concat
                        urssaf
                        poleemploi
