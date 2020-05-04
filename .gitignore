@@ -4,3 +4,4 @@ classes/
 todo.org
 .nrepl-port
 stats.edn
+docs/answers/outdated/*

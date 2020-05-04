@@ -482,7 +482,7 @@
                        economie
                        )
         all-with-id
-        (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %)))}) all)]
+        (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %) (:s %)))}) all)]
     (spit (str upload-dir "faq.json")
           (-> all-with-id (json/generate-string true)))
     (spit (str upload-dir "faq-questions.json")
