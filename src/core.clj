@@ -85,14 +85,13 @@
    {:status 200
     :body   (j/write-value-as-string @stats)}))
 
-;; Reject answers when visit is < 5 secondes or > 1 hour
 (defn valid-date? [date-token]
   (let [dt     (t/instant date-token)
         da     (t/instant)
-        dt+10  (t/plus dt (t/seconds 5))
-        dt+600 (t/plus dt (t/seconds 3600))]
-    (and (= da (t/max dt+10 da))
-         (= dt+600 (t/max dt+600 da)))))
+        dt+min (t/plus dt (t/seconds 2))
+        dt+max (t/plus dt (t/seconds 3600))]
+    (and (= da (t/max dt+min da))
+         (= dt+max (t/max dt+max da)))))
 
 (defn prn-resp [status msg]
   (wrap-headers
