@@ -419,7 +419,7 @@
 ;; Add FAQs from https://www.economie.gouv.fr
 
 (def economie-url
-  "https://info-entreprises-covid19.economie.gouv.fr/kb")
+  "https://info-entreprises-covid19.economie.gouv.fr/kb/fr")
 
 (defn economie-entity [e url]
   (when-let [q (re-matches #"^.*\s*\?\s*$" (first e))]
