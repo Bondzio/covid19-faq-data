@@ -65,7 +65,7 @@
             #"^.*defense.*$"
             (hi/html (hc/hickory-to-hiccup m))
             #"^.*economie.*$"
-            (format "La réponse sur <a target=\"new\" href=\"%s\">le site du Ministère de l'Économie et des Finanances.</a>" m)
+            (format "La réponse sur <a target=\"new\" href=\"%s\">le site du Ministère de l'Économie et des Finances.</a>" m)
             
             #"^.*pole-emploi.*$"
             (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) m))
@@ -421,13 +421,16 @@
 (def economie-url
   "https://info-entreprises-covid19.economie.gouv.fr/kb/fr")
 
+(def economie-url-answer-prefix
+  "https://info-entreprises-covid19.economie.gouv.fr/kb/guide/fr/")
+
 (defn economie-entity [e url]
-  (when-let [q (re-matches #"^.*\s*\?\s*$" (first e))]
-    {:q q
-     :r (format-answer url (second e))
-     :s "Ministère de l'Économie et des Finances"
-     :u url
-     :m date}))
+  {:q (first e)
+   :r (format-answer url (str economie-url-answer-prefix
+                              (second e)))
+   :s "Ministère de l'Économie et des Finances"
+   :u url
+   :m date})
 
 (defn scrap-economie [url]
   (->> (scrap-to-hickory url)
@@ -441,7 +444,7 @@
        :containers
        (map (fn [{:keys [status title id]}]
               (when (= status "published")
-                [title (str economie-url "/explanation/" id)])))
+                [title id])))
        (remove nil?)
        (map #(economie-entity % url))
        (remove nil?)))
