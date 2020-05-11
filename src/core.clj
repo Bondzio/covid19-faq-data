@@ -14,10 +14,6 @@
 
 (defonce dev? false)
 (defonce port 3000)
-(defonce faq-questions-path
-  (if dev?
-    (str data/upload-dir "faq-questions.json")
-    "https://bzg.github.io/covid19-faq-data/faq-questions.json"))
 
 (defonce front-url
   (if dev?
@@ -28,7 +24,7 @@
 
 (def questions-ids
   (->> (j/read-value
-        (slurp faq-questions-path ))
+        (slurp (str data/upload-dir "faq-questions.json")))
        (map #(select-keys % ["i"]))
        (map vals)
        flatten))
