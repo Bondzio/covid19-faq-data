@@ -20,7 +20,7 @@
     #"http://localhost:9500"
     #"https://www.covid19-faq.fr"))
 
-(defonce spit-every-x-hits 100)
+(defonce spit-every-x-hits (if dev? 5 100))
 
 (def questions-ids
   (->> (j/read-value
@@ -30,12 +30,15 @@
        flatten))
 
 (def stats
-  (atom
-   (or (edn/read-string
-        (try (slurp "stats.edn") (catch Exception _ nil)))
-       (->> (map (fn [a] {a {:hits 0 :note {:count 0 :mean 0}}})
-                 questions-ids)
-            (into {})))))
+  (let [faq-ids
+        (->> (map (fn [a] {a {:hits 0 :note {:count 0 :mean 0}}})
+                  questions-ids)
+             (into {}))
+        stats-edn
+        (edn/read-string
+         (try (slurp "stats.edn")
+              (catch Exception _ nil)))]
+    (atom (merge (select-keys stats-edn (keys faq-ids)) faq-ids))))
 
 (def store-stats-chan (async/chan))
 
