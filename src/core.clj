@@ -31,7 +31,7 @@
 
 (def stats
   (let [faq-ids
-        (->> (map (fn [a] {a {:hits 0 :note {:count 0 :mean 0}}})
+        (->> (map (fn [a] {a {:h 0 :n {:c 0 :m 0}}})
                   questions-ids)
              (into {}))
         stats-edn
@@ -51,7 +51,7 @@
 (add-watch
  stats :backup
  (fn [_ a _ _]
-   (when (zero? (mod (apply + (map :hits (vals @a)))
+   (when (zero? (mod (apply + (map :h (vals @a)))
                      spit-every-x-hits))
      (when dev? (println "Saving to stats.edn..."))
      (async/thread
@@ -108,7 +108,7 @@
         {:keys [id token]} params]
     (if-let [date-token (get @valid-tokens token)]
       (if (valid-date? date-token)
-        (do (swap! stats update-in [id :hits] inc)
+        (do (swap! stats update-in [id :h] inc)
             (prn-resp 200 "OK"))
         (prn-resp 400 "Invalid token"))
       (prn-resp 400 "Token not found"))))
@@ -123,10 +123,10 @@
         {:keys [id token note]} params]
     (if-let [date-token (get @valid-tokens token)]
       (if (valid-date? date-token)
-        (let [cnt  (get-in @stats [id :note :count])
+        (let [cnt  (get-in @stats [id :n :c])
               note (edn/read-string note)]
-          (do (swap! stats update-in [id :note :count] inc)
-              (swap! stats update-in [id :note :mean]
+          (do (swap! stats update-in [id :n :c] inc)
+              (swap! stats update-in [id :n :m]
                      #(mean % cnt note))
               (prn-resp 200 "OK")))
         (prn-resp 400 "Invalid token"))
