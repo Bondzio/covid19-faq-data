@@ -13,7 +13,7 @@
         clojure.java-time         {:mvn/version "0.3.2"}
         borkdude/babashka         {:mvn/version "0.0.75"}
         lambdaisland/uri          {:mvn/version "1.3.45"}
-        metosin/pohjavirta        {:mvn/version "0.0.1-alpha7"}
+        http-kit                  {:mvn/version "2.3.0"}
         metosin/jsonista          {:mvn/version "0.2.5"}
         metosin/reitit            {:mvn/version "0.4.2"}
         metosin/reitit-ring       {:mvn/version "0.4.2"}

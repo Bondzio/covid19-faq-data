@@ -1,5 +1,5 @@
 (ns core
-  (:require [pohjavirta.server :as server]
+  (:require [org.httpkit.server :as server]
             [jsonista.core :as j]
             [reitit.ring :as ring]
             [java-time :as t]
@@ -132,7 +132,7 @@
         (prn-resp 400 "Invalid token"))
       (prn-resp 400 "Token not found"))))
 
-(def app
+(def handler
   (ring/ring-handler
    (ring/router
     [["/token" {:get get-token}]
@@ -162,5 +162,5 @@
       (data/generate-json))
     (do
       (when dev? (start-tokens-purge-loop))
-      (-> app (server/create {:port port}) server/start)
+      (server/run-server handler {:port port})
       (println "API started on localhost:3000"))))
