@@ -16,6 +16,7 @@ par ces organismes publiques :
 - sfpt-fr.org
 - defense.gouv.fr
 - economie.gouv.fr
+- service-public.fr
 
 Vous pouvez consulter les questions/réponses sur
 [[https://www.covid19-faq.fr]].
