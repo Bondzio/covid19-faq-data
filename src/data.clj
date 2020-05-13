@@ -66,7 +66,8 @@
             (hi/html (hc/hickory-to-hiccup m))
             #"^.*economie.*$"
             (format "La réponse sur <a target=\"new\" href=\"%s\">le site du Ministère de l'Économie et des Finances.</a>" m)
-            
+            #"^.*service-public.*$"
+            (format "La réponse sur <a target=\"new\" href=\"%s\">le site www.service-public.fr de la DILA</a>" m)
             #"^.*pole-emploi.*$"
             (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) m))
             #"^.*sfpt.*$"
@@ -137,12 +138,13 @@
 (def gouvernement-url "https://www.gouvernement.fr/info-coronavirus")
 
 (defn gouvernement-entity [e url]
-  (when-let [question (not-empty (first (:content (first e))))]
-    {:q (s/trim question)
-     :r (format-answer url (rest e))
-     :s "Gouvernement"
-     :u url
-     :m date}))
+  (when-let [q0 (not-empty (first (:content (first e))))]
+    (when-let [question (re-matches #"^.*\?\s*$" q0)]
+      {:q (s/trim question)
+       :r (format-answer url (rest e))
+       :s "Gouvernement"
+       :u url
+       :m date})))
 
 (defn scrap-gouvernement [url]
   (->> (scrap-to-hickory url)
@@ -234,7 +236,8 @@
    "primes-exceptionnelles-et-epargne-salariale"
    "dialogue-social"
    "embauche-demission-sanctions-licenciement"
-   "services-de-sante-au-travail"])
+   "services-de-sante-au-travail"
+   "teletravail"])
 
 (defn travailemploi-entity [e url]
   (when-let [q0 (not-empty (hi/html (hc/hickory-to-hiccup (first e))))]
@@ -450,6 +453,27 @@
        (remove nil?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Add FAQs from https://www.service-public.fr
+
+(def service-public-url
+  "https://www.service-public.fr/particuliers/actualites/A13995")
+
+(defn service-public-entity [e url]
+  (when-let [question (first (:content (first (:content e))))]
+    {:q question
+     :r (format-answer url (:href (:attrs e)))
+     :s "Direction de l'information légale et administrative"
+     :u url
+     :m date}))
+
+(defn scrap-service-public [url]
+  (->> (scrap-to-hickory url)
+       (hs/select
+        (hs/class "link-arrow"))
+       (map #(service-public-entity % url))
+       (remove nil?)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Put it all together
 
 (defn move-old-answers []
@@ -458,32 +482,34 @@
 
 (defn generate-json []
   (let [
-        urssaf        (scrap-urssaf urssaf-url)
-        poleemploi    (scrap-poleemploi)
-        gouvernement  (scrap-gouvernement gouvernement-url)
-        education     (scrap-education)
-        travailemploi (scrap-travailemploi)
-        associations  (scrap-associations associations-url)
-        handicap      (scrap-handicap handicap-url)
-        etudiant      (scrap-etudiant etudiant-url)
-        sante         (scrap-solidaritessante)
-        sfpt          (scrap-sfpt sfpt-url)
-        defense       (scrap-defense defense-url) ;; No URL, local file
-        economie      (scrap-economie economie-url)
-        all           (concat
-                       urssaf
-                       poleemploi
-                       gouvernement
-                       education
-                       travailemploi
-                       associations
-                       handicap
-                       etudiant
-                       sante
-                       sfpt
-                       defense
-                       economie
-                       )
+        urssaf         (scrap-urssaf urssaf-url)
+        poleemploi     (scrap-poleemploi)
+        gouvernement   (scrap-gouvernement gouvernement-url)
+        education      (scrap-education)
+        travailemploi  (scrap-travailemploi)
+        associations   (scrap-associations associations-url)
+        handicap       (scrap-handicap handicap-url)
+        etudiant       (scrap-etudiant etudiant-url)
+        sante          (scrap-solidaritessante)
+        sfpt           (scrap-sfpt sfpt-url)
+        defense        (scrap-defense defense-url) ;; No URL, local file
+        economie       (scrap-economie economie-url)
+        service-public (scrap-service-public service-public-url)
+        all            (concat
+                        urssaf
+                        poleemploi
+                        gouvernement
+                        education
+                        travailemploi
+                        associations
+                        handicap
+                        etudiant
+                        sante
+                        sfpt
+                        defense
+                        economie
+                        service-public
+                        )
         all-with-id
         (map #(merge % {:i (md5 (str (:q %) (:r %) (:u %) (:s %)))}) all)]
     (spit (str upload-dir "faq.json")
