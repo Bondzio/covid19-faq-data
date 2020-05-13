@@ -10,7 +10,8 @@
             [clojure.edn :as edn]
             [clojure.walk :as walk]
             [reitit.ring.middleware.parameters :as parameters]
-            [ring.middleware.cors :refer [wrap-cors]]))
+            [ring.middleware.cors :refer [wrap-cors]]
+            [mount.core :refer [defstate] :as mount]))
 
 (defonce dev? false)
 (defonce port 3000)
@@ -155,12 +156,19 @@
         (purge-tokens)
         (recur)))))
 
+(defstate server
+  :start (do (println "API started on localhost:3000")
+             (server/run-server handler {:port 3000}))
+  :stop (when server (server :timeout 100)))
+
 (defn -main [& [json]]
   (if json ;; Any value is OK
-    (do
-      (data/move-old-answers)
-      (data/generate-json))
-    (do
-      (when dev? (start-tokens-purge-loop))
-      (server/run-server handler {:port port})
-      (println "API started on localhost:3000"))))
+    (do (data/move-old-answers)
+        (data/generate-json))
+    (do (when dev? (start-tokens-purge-loop))
+        (mount/start))))
+
+(comment
+  (-main)
+  (mount/stop)
+  )

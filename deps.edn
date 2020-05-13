@@ -18,7 +18,8 @@
         metosin/reitit            {:mvn/version "0.4.2"}
         metosin/reitit-ring       {:mvn/version "0.4.2"}
         metosin/reitit-middleware {:mvn/version "0.4.2"}
-        ring-cors                 {:mvn/version "0.1.13"}}
+        ring-cors                 {:mvn/version "0.1.13"}
+        mount                     {:mvn/version "0.1.16"}}
 
  :aliases
  {:api  {:main-opts ["-m core"]}
