@@ -67,7 +67,7 @@
             #"^.*service-public.*$"
             (format "La réponse sur <a target=\"new\" href=\"%s\">le site www.service-public.fr de la DILA</a>" m)
             #"^.*pole-emploi.*$"
-            (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup (first %))) m))
+            (s/join "<br/>" (map #(hi/html (hc/hickory-to-hiccup %)) (first m)))
             #"^.*sfpt.*$"
             (hi/html [:a {:target "new"
                           :href   (str sfpt-base-domain (:href (:attrs m)))}
@@ -119,7 +119,7 @@
 (defn scrap-poleemploi-url [url]
   (->> (scrap-to-hickory url)
        (hs/select (hs/or (hs/class "t4")
-                         (hs/child
+                         (hs/descendant
                           (hs/class "block-article-link")
                           (hs/or (hs/tag "p") (hs/tag "ul")))))
        (partition-by #(= (:tag %) :h2))
