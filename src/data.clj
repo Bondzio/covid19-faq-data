@@ -8,9 +8,7 @@
             [java-time :as t]
             [babashka.curl :as curl]
             [lambdaisland.uri :as uri]
-            [clojure.java.shell :as shell]
-            [clojure.walk :as walk]
-            [clojure.edn :as edn])
+            [clojure.java.shell :as shell])
   (:import (java.security MessageDigest)
            (java.math BigInteger))
   (:gen-class))
